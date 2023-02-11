@@ -1,4 +1,4 @@
-
+import os 
 import cv2 
 import dlib
 import torch 
@@ -6,13 +6,14 @@ import PIL.Image
 import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt 
+from pathlib import Path
 
 class Utils():
     def __init__(self) -> None:
         pass 
     
     @staticmethod
-    def Load_image(image_path, cv2=True):
+    def Load_image(image_path, CV2=True):
         """
         Parameters
         ----------
@@ -20,8 +21,8 @@ class Utils():
             This string should contain a valid relative or absolute path
             to the image with filename. 
             i.e example/image.png 
-        cv2 : boolean
-            If cv2=True: Then OpenCV will be used to load the image 
+        CV2 : boolean
+            If CV2=True: Then OpenCV will be used to load the image 
             or else PIL.Image   
         Returns 
         -------   
@@ -32,31 +33,31 @@ class Utils():
         OpenCV loads image in Blue Green Red (BGR) format 
         PIL loads image in Red Green Blue (RGB) format    
         """
-        if cv2:
+        if CV2:
             img = cv2.imread(image_path)
         else:
             img = PIL.Image.open(image_path)
         return img
 
     @staticmethod
-    def Save_image(img, image_path, cv2=True):
+    def Save_image(img, image_path, CV2=True):
         """
         Parameters
         ----------
         img: OpenCV or PIL image
             Image object to be saved. 
-            if the image is in PIL form please set cv2=False
+            if the image is in PIL form please set CV2=False
         image_path: str
             This string should contain a valid relative or absolute path
             to the image with filename. Please note if a file exist with 
             that name it will be replaced 
             i.e example/image.png
 
-        cv2: Boolean 
-            If True, it will write an image using cv2,
+        CV2: Boolean 
+            If True, it will write an image using CV2,
             otherwise, PIL.Image 
         """
-        if cv2:
+        if CV2:
             cv2.imwrite(image_path, img)
         else:
             img.save(image_path)
@@ -227,27 +228,31 @@ class Face():
         """
         # load model 
         detector = dlib.get_frontal_face_detector()
-        predictor = dlib.shape_predictor("classifiers\shape_predictor_68_face_landmarks.dat")
+        path = os.path.join(
+             Path(__file__).parent.absolute(),
+             'classifiers', 
+             'shape_predictor_68_face_landmarks.dat')
+        predictor = dlib.shape_predictor(path)
         
         # Detect faces 
-        face = detector(img)[0]
-        
-        # Facial Landmarks 
-        landmarks = predictor(img, face)
+        faces = detector(img)
+        for face in faces:
+            # Facial Landmarks 
+            landmarks = predictor(img, face)
 
-        # Get the left and right eye coordinates
-        left_eye_x = landmarks.part(36).x
-        left_eye_y = landmarks.part(36).y
-        right_eye_x = landmarks.part(45).x
-        right_eye_y = landmarks.part(45).y
+            # Get the left and right eye coordinates
+            left_eye_x = landmarks.part(36).x
+            left_eye_y = landmarks.part(36).y
+            right_eye_x = landmarks.part(45).x
+            right_eye_y = landmarks.part(45).y
 
-        # Crop the left eye
-        left_eye_img = img[ left_eye_y-100:left_eye_y+100, 
-                            left_eye_x-100:left_eye_x+400]
+            # Crop the left eye
+            left_eye_img = img[ left_eye_y-100:left_eye_y+100, 
+                                left_eye_x-100:left_eye_x+400]
 
-        # Crop the right eye
-        right_eye_img = img[right_eye_y-100:right_eye_y+100, 
-                            right_eye_x-400:right_eye_x+100]
+            # Crop the right eye
+            right_eye_img = img[right_eye_y-100:right_eye_y+100, 
+                                right_eye_x-400:right_eye_x+100]
 
         return left_eye_img, right_eye_img
 
@@ -282,8 +287,13 @@ class Face():
         # Convert the image to gray scale 
         image_gray = cv2.cvtColor(img.copy(), cv2.COLOR_BGR2GRAY)
 
+        path = os.path.join(
+             Path(__file__).parent.absolute(),
+             'classifiers', 
+             'haarcascade_eye.xml')
+
         # Load the model 
-        eye_bounded_detector = cv2.CascadeClassifier('classifiers\haarcascade_eye.xml')
+        eye_bounded_detector = cv2.CascadeClassifier(path)
         eyes = eye_bounded_detector.detectMultiScale(image_gray)
 
         # Bound and extract left eye
@@ -494,7 +504,12 @@ class Eye():
         return result_image
 
     @staticmethod
-    def Face_To_LR_Sclera(image_path, model_path, device):
+    def Face_To_LR_Sclera(image_path, 
+        model_path= os.path.join(
+             Path(__file__).parent.absolute(),
+             'classifiers', 
+             'ScleraMaskPredictor.pt'),
+        device='cpu', retrieveCrops=False):
         """
         Parameters
         ----------
@@ -517,15 +532,17 @@ class Eye():
         Right_Sclera : OpenCV obj 
             Contains the right sclera 
         """
+        
         # Load the images
         try:
             img = Utils.Load_image(image_path)
         except:
             raise Exception(f"Unable to load the image {image_path}")
 
+        model = torch.jit.load(model_path, map_location=torch.device(device))
         # Load Model 
         try: 
-            model = torch.load(model_path, device)
+            ...
         except:
             raise Exception(f"Unable to load the model at {model_path}")
 
@@ -542,8 +559,8 @@ class Eye():
 
         # Generate Masks 
         try: 
-            left_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(left))
-            right_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(right))
+            left_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(left),model,'cpu')
+            right_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(right), model,'cpu')
         except: 
             raise Exception(f"Unable to generate masks from {image_path}")
 
@@ -558,4 +575,7 @@ class Eye():
         except: 
             raise Exception(f"Unable to merge the sclera to mask {image_path}")
         
+        if retrieveCrops: 
+            return orignal_left, orignal_right, left_sclera, right_sclera
+          
         return left_sclera, right_sclera
