@@ -163,6 +163,8 @@ def train_model(
             state_dict = model.state_dict()
             state_dict['mask_values'] = dataset.mask_values
             torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
+            model_scripted = torch.jit.script(model) # Export to TorchScript
+            model_scripted.save( str(dir_checkpoint / 'ScleraMaskPredictor.pt')  ) # Save
             logging.info(f'Checkpoint {epoch} saved!')
 
 

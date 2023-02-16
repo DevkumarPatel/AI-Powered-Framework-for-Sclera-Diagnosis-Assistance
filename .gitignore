@@ -156,3 +156,34 @@ cython_debug/
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
 
 .vscode
+
+
+Code/dataset/EyeCrops/Jaundice/*.png
+Code/dataset/EyeCrops/Jaundice/*.jpg
+Code/dataset/EyeCrops/Normal/*.png
+Code/dataset/EyeCrops/Normal/*.jpg
+Code/dataset/EyeCrops/OsteogensisImperfecta/*.png
+Code/dataset/EyeCrops/OsteogensisImperfecta/*.jpg
+
+Code/dataset/Face/Jaundice/*.png
+Code/dataset/Face/Jaundice/*.jpg
+Code/dataset/Face/Normal/*.png
+Code/dataset/Face/Normal/*.jpg
+Code/dataset/Face/OsteogensisImperfecta/*.png
+Code/dataset/Face/OsteogensisImperfecta/*.jpg
+
+
+Code/dataset/Scleras/Jaundice/*.png
+Code/dataset/Scleras/Jaundice/*.jpg
+Code/dataset/Scleras/Jaundice/test/*.png
+Code/dataset/Scleras/Jaundice/test/*.jpg
+Code/dataset/Scleras/Normal/*.png
+Code/dataset/Scleras/Normal/*.jpg
+
+Code/dataset/Scleras/Normal/test/*.png
+Code/dataset/Scleras/Normal/test/*.jpg
+Code/dataset/Scleras/OsteogensisImperfecta/*.png
+Code/dataset/Scleras/OsteogensisImperfecta/*.jpg
+Code/dataset/Scleras/OsteogensisImperfecta/test/*.jpg
+Code/dataset/Scleras/OsteogensisImperfecta/test/*.png
+

@@ -1,12 +1,14 @@
 import os 
 import cv2 
 import dlib
+import tqdm
 import torch 
 import PIL.Image  
 import numpy as np
+from pathlib import Path
 import torch.nn.functional as F
 import matplotlib.pyplot as plt 
-from pathlib import Path
+from skimage.exposure import rescale_intensity
 
 class Utils():
     def __init__(self) -> None:
@@ -123,18 +125,26 @@ class Utils():
         If the hist is being used for training, prefer 
         using hist.flatten() 
         """
+        #cv2.normalize(image, image, 0, 255, cv2.NORM_MINMAX)
+
         # Compute the color histogram for the RGB image
-        hist = cv2.calcHist([image], [0, 1, 2], None, [64, 64, 64], [0, 256, 0, 256, 0, 256])
-        
-        # Normalize the histogram
-        cv2.normalize(hist, hist)
-        
-        # Reshape the histogram to a 3D array
-        hist = hist.reshape(64, 64, 64)
-        
+        hist = cv2.calcHist([image], [0, 1, 2], None, [64, 64, 64], [0, 255, 0, 255, 0, 255])
+
         if suppress_black:
             # Exclude the black color
             hist[0, 0, 0] = 0
+
+        # Calculate the sum of all bins in the histogram
+        total_sum = np.sum(hist)
+
+        # Normalize the histogram by dividing each bin by the total sum
+        hist /= total_sum
+
+        # Reshape the histogram to a 3D array
+        hist = hist.reshape(64, 64, 64)
+
+        
+        
 
         return hist 
 
@@ -509,7 +519,7 @@ class Eye():
              Path(__file__).parent.absolute(),
              'classifiers', 
              'ScleraMaskPredictor.pt'),
-        device='cpu', retrieveCrops=False):
+        device='cpu', retrieveCrops=False, preloaded=False):
         """
         Parameters
         ----------
@@ -539,12 +549,14 @@ class Eye():
         except:
             raise Exception(f"Unable to load the image {image_path}")
 
-        model = torch.jit.load(model_path, map_location=torch.device(device))
-        # Load Model 
-        try: 
-            ...
-        except:
-            raise Exception(f"Unable to load the model at {model_path}")
+        if preloaded == False:
+            # Load Model 
+            try: 
+                model = torch.jit.load(model_path, map_location=torch.device(device))
+            except:
+                raise Exception(f"Unable to load the model at {model_path}")
+        else:
+            model = preloaded
 
         # Get the Eye Crops 
         try: 
@@ -559,8 +571,8 @@ class Eye():
 
         # Generate Masks 
         try: 
-            left_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(left),model,'cpu')
-            right_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(right), model,'cpu')
+            left_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(left),model, device)
+            right_mask = Eye.Generate_EyeToMask(Utils.OpenCV_To_PIL(right), model,device)
         except: 
             raise Exception(f"Unable to generate masks from {image_path}")
 
@@ -579,3 +591,100 @@ class Eye():
             return orignal_left, orignal_right, left_sclera, right_sclera
           
         return left_sclera, right_sclera
+
+
+    @staticmethod
+    def Save_Faces_To_Scleras(images, outputdir, model_path= os.path.join(
+             Path(__file__).parent.absolute(),
+             'classifiers', 
+             'ScleraMaskPredictor.pt'), device=('cuda' if torch.cuda.is_available() else 'cpu')  ):
+        """
+        Parameters 
+        ----------
+        images : list 
+            Contains all absolute path 
+        output: str 
+            Contains absolute path to dir of output. 
+        Notes 
+        -----
+        If filenames have conflict in output directory they will be replaced 
+        """
+        print(f"Working on these images with help of {device}: ")
+        
+        # Load model: 
+        try:           
+            model = torch.jit.load(model_path, map_location=torch.device(device))
+        except:
+            print("Unable to load model!")
+        for img in tqdm.tqdm( images): 
+            failed =[]
+            ff = 0 
+            try: 
+                l, r = Eye.Face_To_LR_Sclera(img, device=device, preloaded=model)
+            except:
+                ff += 1 
+                failed.append(img)
+
+            try: 
+                filename = outputdir + os.path.basename(img).split('.')[0]
+                Utils.Save_image(l, filename+"L.png")
+                Utils.Save_image(r, filename+"R.png")
+                #print(f"Filename processed and saved: {filename}")
+            except:
+                failed.append(f"Unable to save {img}!")
+                
+        print(f"{ff} failed:")
+        for fail in failed: 
+            print(f"\t {fail}")
+
+    @staticmethod
+    def _TO_Sclera(image_path, model_path=os.path.join(
+             Path(__file__).parent.absolute(),
+             'classifiers', 
+             'ScleraMaskPredictor.pt'),
+             device='cpu'):
+        """
+        """
+        # Load the images
+        try:
+            img = Utils.Load_image(image_path)
+        except:
+            raise Exception(f"Unable to load the image {image_path}")
+
+
+        original_img = img.copy()
+
+        model = torch.jit.load(model_path, map_location=torch.device(device))
+
+        # Generate Masks 
+        try: 
+            mask = Eye.Generate_EyeToMask( Utils.OpenCV_To_PIL(img), model, 'cpu')
+        except: 
+            raise Exception(f"Unable to generate masks from {image_path}")
+
+        #Convert masks to OpenCV
+        mask = Utils.PIL_To_OpenCV(mask)
+
+        # Merge Mask with Eye Crops 
+        try:
+            sclera = Eye.merge_image(original_img, mask)
+        except: 
+            raise Exception(f"Unable to merge the sclera to mask {image_path}")
+        
+        return sclera 
+
+    @staticmethod
+    def Save_Eye_To_Sclera(images, output_dir):
+        for img in images: 
+            try: 
+                sclera = Eye._TO_Sclera(img)
+            except:
+                raise Exception(f"Couldn't Process the {img}")
+
+            try: 
+                filename =  output_dir + os.path.basename(img).split('.')[0]
+                Utils.Save_image(sclera, filename+".png")
+                print(f"Filename processed and saved: {filename}")
+            except:
+                print(f"Unable to save {img}!")
+
