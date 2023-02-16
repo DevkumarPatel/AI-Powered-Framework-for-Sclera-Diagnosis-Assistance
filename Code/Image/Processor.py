@@ -8,7 +8,7 @@ import numpy as np
 from pathlib import Path
 import torch.nn.functional as F
 import matplotlib.pyplot as plt 
-from skimage.exposure import rescale_intensity
+
 
 class Utils():
     def __init__(self) -> None:
