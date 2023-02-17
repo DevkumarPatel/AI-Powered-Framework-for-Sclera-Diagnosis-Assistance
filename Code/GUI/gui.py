@@ -146,8 +146,8 @@ class ImageWindow(QtWidgets.QWidget):
             print(file_name)
             o_l, o_r, l_s, r_s = Eye.Face_To_LR_Sclera(file_name, retrieveCrops=True)
 
-            l_s_h = Utils.Image_To_Histogram(  l_s  ).flatten() 
-            r_s_h = Utils.Image_To_Histogram(  r_s  ).flatten() 
+            l_s_h = Utils.Image_To_Histogram(  l_s, concat=True  ).flatten() 
+            r_s_h = Utils.Image_To_Histogram(  r_s, concat=True  ).flatten() 
 
             prediction_left  = self.knn.predict( l_s_h.reshape(1,-1) )[0]
             prediction_right = self.knn.predict( r_s_h.reshape(1,-1) )[0]
@@ -174,7 +174,7 @@ class ImageWindow(QtWidgets.QWidget):
             # Load the image
             pixmap = QtGui.QPixmap(file_name)
             # Rotate the image
-            pixmap = pixmap.transformed(QtGui.QTransform().rotate(270))
+            #pixmap = pixmap.transformed(QtGui.QTransform().rotate(270))
 
             # Scale the image to the size of the container
             scaled_pixmap = pixmap.scaled(self.image_box.size(), QtCore.Qt.KeepAspectRatio)

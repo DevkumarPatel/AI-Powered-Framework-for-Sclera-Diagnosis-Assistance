@@ -9,7 +9,6 @@ from pathlib import Path
 import torch.nn.functional as F
 import matplotlib.pyplot as plt 
 
-
 class Utils():
     def __init__(self) -> None:
         pass 
@@ -104,7 +103,7 @@ class Utils():
         return img
 
     @staticmethod 
-    def Image_To_Histogram(image, bins=64, suppress_black=True):
+    def Image_To_Histogram(image, bins=64, suppress_black=True, concat=False):
         """
         Parameters
         ----------
@@ -114,6 +113,9 @@ class Utils():
             the number of subdivisions in each dim
         suppress_black : boolean 
             ignore black in histogram
+        
+        concat: if True:
+            Returns a numpy array with size of bins * 3 
 
         Return
         ------
@@ -128,7 +130,8 @@ class Utils():
         #cv2.normalize(image, image, 0, 255, cv2.NORM_MINMAX)
 
         # Compute the color histogram for the RGB image
-        hist = cv2.calcHist([image], [0, 1, 2], None, [64, 64, 64], [0, 255, 0, 255, 0, 255])
+        hist = cv2.calcHist([image], [0, 1, 2], None, [bins, bins, bins], [0, 255, 0, 255, 0, 255])
+        
 
         if suppress_black:
             # Exclude the black color
@@ -141,10 +144,14 @@ class Utils():
         hist /= total_sum
 
         # Reshape the histogram to a 3D array
-        hist = hist.reshape(64, 64, 64)
+        hist = hist.reshape(bins, bins, bins)
 
-        
-        
+        if concat:
+            red = np.sum(hist, axis=(0, 1))
+            green = np.sum(hist, axis=(0, 2))
+            blue = np.sum(hist, axis=(1, 2))
+            c = np.concatenate([red, green, blue]) 
+            return c
 
         return hist 
 

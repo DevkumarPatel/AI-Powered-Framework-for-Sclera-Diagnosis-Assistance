@@ -187,6 +187,6 @@ Code/dataset/Scleras/OsteogensisImperfecta/*.jpg
 Code/dataset/Scleras/OsteogensisImperfecta/test/*.jpg
 Code/dataset/Scleras/OsteogensisImperfecta/test/*.png
 
-Code/Image/classifiers/knn.joblib
+
 
 Code/GUI/.temp/*.png
